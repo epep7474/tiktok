@@ -1,1 +1,1 @@
-# tiktok
+YOU'RE AN IDIOT
